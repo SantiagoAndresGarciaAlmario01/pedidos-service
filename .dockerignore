@@ -1,0 +1,4 @@
+.m2/
+maven-settings.xml
+menu-service.stdout.log
+menu-service.stderr.log
