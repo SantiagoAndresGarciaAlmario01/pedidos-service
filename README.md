@@ -2,6 +2,38 @@
 
 Microservicio REST que recibe pedidos de Arepa Express, genera un identificador y publica el evento `pedido.creado` en RabbitMQ para que otros servicios lo procesen.
 
+## Arquitectura del laboratorio
+
+Durante el laboratorio se desplegaron los servicios en Azure Container Apps, RabbitMQ en Azure Container Instances y el API Gateway con Azure API Management (plan Consumption). El gateway fue la entrada única para el cliente y protegió las APIs con una clave de suscripción.
+
+| Operación pública en el gateway | Servicio de destino |
+|---|---|
+| `GET /menu-api/menu` | `menu-service`, `GET /menu` |
+| `POST /pedidos-api/pedidos` | `pedidos-service`, `POST /pedidos` |
+
+Las solicitudes al gateway incluyen el encabezado `Ocp-Apim-Subscription-Key`. Sin la clave, el gateway responde `401`; con una clave válida, enruta la solicitud al servicio correspondiente. Una política de salida añade el encabezado `X-Arepa-Gateway: DOSW Company` a las respuestas.
+
+### Eventos con RabbitMQ
+
+Al aceptar un pedido, `pedidos-service` publica un evento JSON en el exchange topic `arepas.eventos`, con la clave de enrutamiento `pedido.creado`. Los consumidores procesan el evento de forma asíncrona:
+
+| Cola | Consumidor | Clave de enlace |
+|---|---|---|
+| `cocina.pedidos` | `cocina-service` | `pedido.*` |
+| `notificaciones.pedidos` | `notificaciones-service` | `pedido.creado` |
+| `auditoria.pedidos` | Cola de auditoría creada para el experimento | `pedido.#` |
+
+El evento contiene `pedidoId`, `cliente`, `arepas` y `fecha`. `cocina-service` registra el inicio y fin de la preparación; `notificaciones-service` registra la confirmación del pedido.
+
+### Repositorios del proyecto
+
+- [menu-service](https://github.com/SantiagoAndresGarciaAlmario01/menu-service)
+- [pedidos-service](https://github.com/SantiagoAndresGarciaAlmario01/pedidos-service)
+- [cocina-service](https://github.com/SantiagoAndresGarciaAlmario01/cocina-service)
+- [notificaciones-service](https://github.com/SantiagoAndresGarciaAlmario01/notificaciones-service)
+
+La infraestructura de Azure se eliminó al finalizar las pruebas del laboratorio; los endpoints de Azure usados durante el ejercicio ya no están activos.
+
 ## Tecnologías
 
 - Java 21
